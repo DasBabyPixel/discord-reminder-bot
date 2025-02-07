@@ -30,8 +30,16 @@ public class ReminderBot {
         var roleBear1Id = 1337128132481650758L;
         var channelBear2Id = 1337163055242416221L;
         var roleBear2Id = 1337128233077837976L;
-        var channelResetId = 1337163171038756966L;
-        var roleResetId = 1337145958160662558L;
+
+        var channelReset3Id = 1337376720017424425L;
+        var channelReset5Id = 1337163171038756966L;
+        var channelReset10Id = 1337376949806563358L;
+        var channelReset20Id = 1337377179746566217L;
+
+        var roleReset3Id = 1337375904279564288L;
+        var roleReset5Id = 1337145958160662558L;
+        var roleReset10Id = 1337375985414307860L;
+        var roleReset20Id = 1337375942858899566L;
 
         var guild = Objects.requireNonNull(gateway.getGuildById(Snowflake.of(guildId)).block());
         var remindersBear1Channel = gateway
@@ -42,13 +50,28 @@ public class ReminderBot {
                 .getChannelById(Snowflake.of(channelBear2Id))
                 .ofType(MessageChannel.class)
                 .block();
-        var remindersResetChannel = gateway
-                .getChannelById(Snowflake.of(channelResetId))
+        var remindersReset3Channel = gateway
+                .getChannelById(Snowflake.of(channelReset3Id))
+                .ofType(MessageChannel.class)
+                .block();
+        var remindersReset5Channel = gateway
+                .getChannelById(Snowflake.of(channelReset5Id))
+                .ofType(MessageChannel.class)
+                .block();
+        var remindersReset10Channel = gateway
+                .getChannelById(Snowflake.of(channelReset10Id))
+                .ofType(MessageChannel.class)
+                .block();
+        var remindersReset20Channel = gateway
+                .getChannelById(Snowflake.of(channelReset20Id))
                 .ofType(MessageChannel.class)
                 .block();
         var roleBear1 = gateway.getRoleById(guild.getId(), Snowflake.of(roleBear1Id)).block();
         var roleBear2 = gateway.getRoleById(guild.getId(), Snowflake.of(roleBear2Id)).block();
-        var roleReset = gateway.getRoleById(guild.getId(), Snowflake.of(roleResetId)).block();
+        var roleReset3 = gateway.getRoleById(guild.getId(), Snowflake.of(roleReset3Id)).block();
+        var roleReset5 = gateway.getRoleById(guild.getId(), Snowflake.of(roleReset5Id)).block();
+        var roleReset10 = gateway.getRoleById(guild.getId(), Snowflake.of(roleReset10Id)).block();
+        var roleReset20 = gateway.getRoleById(guild.getId(), Snowflake.of(roleReset20Id)).block();
 
         gateway.on(ButtonInteractionEvent.class, event -> {
             var id = event.getCustomId();
@@ -63,13 +86,28 @@ public class ReminderBot {
                     role = roleBear2;
                     display = "Bear 2";
                 }
-                case "reset" -> {
-                    role = roleReset;
-                    display = "Reset";
+                case "reset-3" -> {
+                    role = roleReset3;
+                    display = "Reset 3 Min";
+                }
+                case "reset-5" -> {
+                    role = roleReset5;
+                    display = "Reset 5 Min";
+                }
+                case "reset-10" -> {
+                    role = roleReset10;
+                    display = "Reset 10 Min";
+                }
+                case "reset-20" -> {
+                    role = roleReset20;
+                    display = "Reset 20 Min";
                 }
                 default -> {
-                    role = roleBear1;
-                    display = "INVALID";
+                    return event.reply(InteractionApplicationCommandCallbackSpec
+                            .builder()
+                            .ephemeral(true)
+                            .content("Something is wrong, try again later or notify DasBabyPixel")
+                            .build());
                 }
             }
             var member = event.getInteraction().getMember().orElseThrow();
@@ -99,20 +137,23 @@ public class ReminderBot {
 
         var bear1Start = 1738868100000L;
         var bear2Start = 1738887000000L;
-        var resetTime = 1738886100000L;
+        var resetTime = 1738886400000L;
 
         startBearTimer(timer, bear1Start, remindersBear1Channel, roleBear1);
         startBearTimer(timer, bear2Start, remindersBear2Channel, roleBear2);
-        startResetTimer(timer, resetTime, remindersResetChannel, roleReset);
+        startResetTimer(timer, 3, resetTime, remindersReset3Channel, roleReset3);
+        startResetTimer(timer, 5, resetTime, remindersReset5Channel, roleReset5);
+        startResetTimer(timer, 10, resetTime, remindersReset10Channel, roleReset10);
+        startResetTimer(timer, 20, resetTime, remindersReset20Channel, roleReset20);
     }
 
-    private static void startResetTimer(Timer timer, long originalStartTime, MessageChannel channel, Role role) {
+    private static void startResetTimer(Timer timer, long minutes, long resetTime, MessageChannel channel, Role role) {
         var interval = TimeUnit.DAYS.toMillis(1);
-        var startTime = adjustStart(originalStartTime, interval);
+        var startTime = adjustStart(resetTime - TimeUnit.MINUTES.toMillis(minutes), interval);
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                scheduleNotification(channel, "Reset alarm <@&%d>".formatted(role.getId().asLong()));
+                scheduleNotification(channel, "Reset %d minute alarm <@&%d>".formatted(minutes, role.getId().asLong()));
             }
         }, Date.from(Instant.ofEpochMilli(startTime)), interval);
     }
