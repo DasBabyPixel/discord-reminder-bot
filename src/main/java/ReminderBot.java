@@ -136,7 +136,7 @@ public class ReminderBot {
         var timer = new Timer("Bear-Timer", true);
 
         var bear1Start = 1738868100000L;
-        var bear2Start = 1738887000000L;
+        var bear2Start = 1738969800000L;
         var resetTime = 1738886400000L;
 
         startBearTimer(timer, bear1Start, remindersBear1Channel, roleBear1);

