@@ -135,7 +135,7 @@ public class ReminderBot {
 
         var timer = new Timer("Bear-Timer", true);
 
-        var bear1Start = 1738868100000L;
+        var bear1Start = 1738868100000L - TimeUnit.MINUTES.toMillis(30);
         var bear2Start = 1738973400000L;
         var resetTime = 1738886400000L;
 
