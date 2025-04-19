@@ -8,6 +8,8 @@ import discord4j.core.object.entity.channel.MessageChannel;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
 import discord4j.core.spec.MessageCreateSpec;
 import reactor.core.publisher.Mono;
+import reactor.util.Logger;
+import reactor.util.Loggers;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -17,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 public class ReminderBot {
     public static GatewayDiscordClient gateway;
     private static final Map<String, Reminder> REMINDERS = new HashMap<>();
+    private static final Logger LOGGER = Loggers.getLogger(ReminderBot.class);
 
     public static void main(String[] args) {
         login(args[0]);
@@ -161,6 +164,9 @@ public class ReminderBot {
     private static void startBearTimer(Timer timer, long originalStartTime, MessageChannel channel, Role role) {
         var interval = TimeUnit.DAYS.toMillis(2);
         var startTime = adjustStart(originalStartTime, interval);
+
+        LOGGER.warn("Bear at: " + Instant.ofEpochMilli(startTime));
+
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
