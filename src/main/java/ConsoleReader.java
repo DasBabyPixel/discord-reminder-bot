@@ -12,7 +12,17 @@ public class ConsoleReader {
                     var line = reader.readLine();
                     if (line == null) continue;
                     if (line.equals("exit")) break;
-                    System.out.println("Read: " + line);
+                    if (line.startsWith("dur: ")) {
+                        var durStr = line.substring("dur: ".length());
+                        try {
+                            var dur = DurationParser.parse(durStr);
+                            System.out.println("Duration: " + dur);
+                        } catch (IllegalArgumentException e) {
+                            System.out.println(e.getMessage());
+                        }
+                    } else {
+                        System.out.println("Read: " + line);
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

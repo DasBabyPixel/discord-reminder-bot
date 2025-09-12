@@ -8,6 +8,12 @@ import java.util.stream.Collectors;
 public class CommandHandler {
     public static void register(GatewayDiscordClient gateway) {
         gateway.on(ChatInputInteractionEvent.class, event -> {
+            var guildIdOptional = event.getInteraction().getGuildId();
+            if (guildIdOptional.isEmpty()) {
+                return event.reply("Bad input");
+            }
+            var instance = ServerManager.INSTANCE.get(guildIdOptional.get().asLong());
+
             var command = event.getCommandName();
             switch (command) {
                 case "serverreminder" -> {
@@ -56,7 +62,7 @@ public class CommandHandler {
                                 var roleId = role.getId().asLong();
                                 var channelId = c.getId().asLong();
                                 var reminder = new Reminder(name, startTime, interval, channelId, roleId);
-                                var suc = ReminderBot.addReminder(reminder);
+                                var suc = instance.addReminder(reminder);
                                 if (!suc) {
                                     return event.reply(InteractionApplicationCommandCallbackSpec
                                             .builder()
@@ -79,8 +85,9 @@ public class CommandHandler {
                     });
                 }
                 case "list" -> {
-                    var reminders = ReminderBot.getReminders();
+                    var reminders = instance.reminders();
                     var text = "Reminders (" + reminders.size() + "):" + reminders
+                            .values()
                             .stream()
                             .map(Reminder::name)
                             .map(s -> " - " + s)
