@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.time.format.DateTimeParseException;
 
 public class ConsoleReader {
     private static final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
@@ -17,7 +18,16 @@ public class ConsoleReader {
                         try {
                             var dur = DurationParser.parse(durStr);
                             System.out.println("Duration: " + dur);
+                            System.out.println("DurationStr: " + DurationParser.toDisplayString(dur));
                         } catch (IllegalArgumentException e) {
+                            System.out.println(e.getMessage());
+                        }
+                    } else if (line.startsWith("time: ")) {
+                        var str = line.substring("time: ".length());
+                        try {
+                            var i = InstantParser.parse(str);
+                            System.out.println(i);
+                        } catch (DateTimeParseException e) {
                             System.out.println(e.getMessage());
                         }
                     } else {

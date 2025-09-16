@@ -2,6 +2,45 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 
 public class DurationParser {
+    public static String toDisplayString(Duration duration) {
+        var d = duration;
+        var weeks = d.dividedBy(ChronoUnit.WEEKS.getDuration());
+        d = d.minusDays(weeks * 7);
+        var days = d.dividedBy(ChronoUnit.DAYS.getDuration());
+        d = d.minusDays(days);
+        var hours = d.dividedBy(ChronoUnit.HOURS.getDuration());
+        d = d.minusHours(hours);
+        var minutes = d.dividedBy(ChronoUnit.MINUTES.getDuration());
+        d = d.minusMinutes(minutes);
+        var seconds = d.dividedBy(ChronoUnit.SECONDS.getDuration());
+
+        var sb = new StringBuilder();
+        if (duration.isNegative()) sb.append("-(");
+
+        var as = append(sb, weeks, "week", false);
+        as = append(sb, days, "day", as);
+        as = append(sb, hours, "hour", as);
+        as = append(sb, minutes, "minute", as);
+        append(sb, seconds, "second", as);
+
+        if (duration.isNegative()) sb.append(')');
+
+        return sb.toString();
+    }
+
+    private static boolean append(StringBuilder sb, long amt, String display, boolean addSpace) {
+        amt = Math.abs(amt);
+        if (amt != 0L) {
+            if (addSpace) {
+                sb.append(' ');
+            }
+            sb.append(amt).append(' ').append(display);
+            if (amt != 1L) sb.append('s');
+            return true;
+        }
+        return addSpace;
+    }
+
     public static Duration parse(String input) throws IllegalArgumentException {
         var len = input.length();
         var total = Duration.ZERO;

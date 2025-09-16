@@ -13,7 +13,11 @@ public class ReminderBot {
     public static void main(String[] args) {
         login(args[0]);
 
+        ServerManager.load();
+
         ConsoleReader.start();
+
+        CommandHandler.register(gateway);
 
 //        var guildId = 1331253401643647077L;
 ////        var remindersChannelId = 1337131762886901820L;
