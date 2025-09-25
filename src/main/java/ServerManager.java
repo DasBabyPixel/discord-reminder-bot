@@ -51,6 +51,13 @@ public class ServerManager {
                             reminderMap.put(reminderName, reminder);
                         }
 
+                        Duration offsetNext = null;
+                        Instant offsetNextTime = null;
+                        if (eventJson.has("offsetNext")) {
+                            offsetNext = Duration.ofSeconds(eventJson.get("offsetNext").getAsLong());
+                            offsetNextTime = Instant.ofEpochSecond(eventJson.get("offsetNextTime").getAsLong());
+                        }
+
 //                        var manual = new HashMap<Integer, Duration>();
 //                        var manualJson = eventJson.get("manual").getAsJsonObject();
 //                        for (var manualKey : manualJson.keySet()) {
@@ -60,6 +67,7 @@ public class ServerManager {
 //                        }
 
                         var event = new Event(eventName, firstTime, interval, reminderMap);
+                        event.initOffsetNext(offsetNext, offsetNextTime);
                         eventMap.put(eventName, event);
                     }
                     var reactionRoles = new HashMap<String, ReactionRolesMessage>();
@@ -128,6 +136,10 @@ public class ServerManager {
                     rems.add(reminder.name(), rj);
                 }
                 ej.add("reminders", rems);
+                if (event.getOffsetNextTime() != null && event.getOffsetNext() != null) {
+                    ej.addProperty("offsetNextTime", event.getOffsetNextTime().getEpochSecond());
+                    ej.addProperty("offsetNext", event.getOffsetNext().toSeconds());
+                }
 
                 events.add(event.name(), ej);
             }

@@ -1,3 +1,5 @@
+import reactor.util.annotation.Nullable;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
@@ -6,6 +8,8 @@ import java.util.Map;
 public class Event {
     private final String name;
     private Instant firstTime;
+    private @Nullable Duration offsetNext = null;
+    private @Nullable Instant offsetNextTime = null;
     private final Duration interval;
     private final Map<String, Reminder> reminders;
 
@@ -16,12 +20,17 @@ public class Event {
         this.reminders = new HashMap<>(reminders);
     }
 
+    public void initOffsetNext(Duration offsetNext, Instant offsetNextTime) {
+        this.offsetNext = offsetNext;
+        this.offsetNextTime = offsetNextTime;
+    }
+
     public Instant getNextReminderTime(Instant now, Duration offset) {
-        return getNextExecution(firstTime.minus(offset), now, interval);
+        return getNextExecution(firstTimeForCalculation(now).minus(offset), now, interval);
     }
 
     public Instant getNextEventTime(Instant now) {
-        return getNextExecution(firstTime, now, interval);
+        return getNextExecution(firstTimeForCalculation(now), now, interval);
     }
 
     public static Instant getNextExecution(Instant firstTime, Instant now, Duration interval) {
@@ -40,6 +49,39 @@ public class Event {
      */
     public void moveBy(Duration duration) {
         firstTime = firstTime.plus(duration);
+    }
+
+    public void moveByOnce(Duration offset) {
+        offsetNext = offset;
+        this.offsetNextTime = getNextExecution(firstTime, Instant.now(), interval).plus(offset);
+    }
+
+    public void moveTo(Instant firstTime) {
+        this.firstTime = firstTime;
+        this.offsetNextTime = offsetNext == null ? null : firstTime.plus(offsetNext);
+    }
+
+    @Nullable
+    public Instant getOffsetNextTime() {
+        return offsetNextTime;
+    }
+
+    @Nullable
+    public Duration getOffsetNext() {
+        return offsetNext;
+    }
+
+    public void clearOffsetNext() {
+        this.offsetNext = null;
+        this.offsetNextTime = null;
+    }
+
+    public boolean isNextOffset(Instant now) {
+        return offsetNextTime != null && now.isBefore(offsetNextTime);
+    }
+
+    public Instant firstTimeForCalculation(Instant now) {
+        return isNextOffset(now) ? offsetNextTime : firstTime();
     }
 
     public Instant firstTime() {

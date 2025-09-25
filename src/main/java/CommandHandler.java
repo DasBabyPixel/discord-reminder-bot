@@ -11,6 +11,7 @@ import discord4j.core.object.component.LayoutComponent;
 import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.channel.MessageChannel;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
+import discord4j.core.spec.InteractionReplyEditSpec;
 import discord4j.core.spec.MessageCreateSpec;
 import discord4j.core.spec.MessageEditSpec;
 import discord4j.discordjson.json.ApplicationCommandOptionChoiceData;
@@ -25,7 +26,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class CommandHandler {
@@ -34,6 +34,7 @@ public class CommandHandler {
     public static void register(GatewayDiscordClient gateway) {
         gateway.on(ButtonInteractionEvent.class, event -> {
             var customIdString = event.getCustomId();
+            System.out.println("Button press: " + customIdString);
             if (customIdString.startsWith("reactionroles/")) {
                 var sub = customIdString.substring("reactionroles/".length()); // without prefix
                 var idx = sub.indexOf('/');
@@ -47,15 +48,18 @@ public class CommandHandler {
                     roleId = Long.parseLong(sub);
                 }
                 var guildIdOptional = event.getInteraction().getGuildId();
+                System.out.println("Conditions: " + guildIdOptional.isPresent() + " " + idx);
                 if (guildIdOptional.isPresent() && idx != -1) {
                     var froleId = roleId;
                     var fdispaly = display;
                     var member = event.getInteraction().getMember().orElse(null);
+                    System.out.println("Member: " + (member == null ? null : member.getDisplayName()));
                     if (member != null) {
                         return member
                                 .getRoles()
                                 .any(r -> r.getId().asLong() == froleId)
                                 .flatMap(has -> {
+                                    System.out.println("Member has role: " + has);
                                     if (has) {
                                         return member
                                                 .removeRole(Snowflake.of(froleId))
@@ -241,17 +245,93 @@ public class CommandHandler {
                             case "manage" -> {
                                 var subOption = event.getOption("manage").orElseThrow().getOptions().getFirst();
                                 switch (subOption.getName()) {
-                                    case "move" -> {
+                                    case "move-to" -> {
+                                        var eventName = subOption
+                                                .getOption("event")
+                                                .orElseThrow()
+                                                .getValue()
+                                                .orElseThrow()
+                                                .asString();
+                                        var firstStartStr = subOption
+                                                .getOption("firststart")
+                                                .orElseThrow()
+                                                .getValue()
+                                                .orElseThrow()
+                                                .asString();
+                                        Instant firstStart;
+                                        try {
+                                            firstStart = InstantParser.parse(firstStartStr);
+                                        } catch (DateTimeParseException e) {
+                                            return event.reply(InteractionApplicationCommandCallbackSpec
+                                                    .builder()
+                                                    .content("Failed to parse firstStart: " + e.getMessage() + "\nValid examples:\n - 16/09/2025 19:00:05\n - 17/09 19:00\n - 18/09 19:00:05")
+                                                    .ephemeral(true)
+                                                    .build());
+                                        }
+
+                                        var msg = instance.useFun(i -> {
+                                            try {
+                                                if (!i.moveEventTo(eventName, firstStart)) {
+                                                    return "There is no event " + eventName;
+                                                }
+                                            } catch (IOException e) {
+                                                LOGGER.error("Failed to save config", e);
+                                                return "Internal error: Failed to save config. Contact DasBabyPixel";
+                                            }
+                                            return "The event was moved. Use /event info for more information";
+                                        });
                                         return event.reply(InteractionApplicationCommandCallbackSpec
-                                                .builder()
-                                                .content("Move")
+                                                .builder().content(msg)
                                                 .ephemeral(true)
                                                 .build());
                                     }
-                                    case "move_specific" -> {
+//                                    case "move_specific" -> {
+//                                        return event.reply(InteractionApplicationCommandCallbackSpec
+//                                                .builder()
+//                                                .content("Move specific")
+//                                                .ephemeral(true)
+//                                                .build());
+//                                    }
+                                    case "move-by-once" -> {
+                                        var eventName = subOption
+                                                .getOption("event")
+                                                .orElseThrow()
+                                                .getValue()
+                                                .orElseThrow()
+                                                .asString();
+
+                                        var offsetStr = subOption
+                                                .getOption("offset")
+                                                .orElseThrow()
+                                                .getValue()
+                                                .orElseThrow()
+                                                .asString();
+
+                                        Duration offset;
+                                        try {
+                                            offset = DurationParser.parse(offsetStr);
+                                        } catch (IllegalArgumentException e) {
+                                            return event.reply(InteractionApplicationCommandCallbackSpec
+                                                    .builder()
+                                                    .content("Failed to parse offset: " + e.getMessage() + "\nValid examples:\n - 4w+1d-5m+1s\n - 2d\n - 4w")
+                                                    .ephemeral(true)
+                                                    .build());
+                                        }
+
+                                        var msg = instance.useFun(i -> {
+                                            try {
+                                                if (!i.moveEventByOnce(eventName, offset)) {
+                                                    return "There is no event " + eventName;
+                                                }
+                                            } catch (IOException e) {
+                                                LOGGER.error("Failed to save config", e);
+                                                return "Internal error: Failed to save config. Contact DasBabyPixel";
+                                            }
+                                            return "The event was moved. Use /event info for more information";
+                                        });
                                         return event.reply(InteractionApplicationCommandCallbackSpec
                                                 .builder()
-                                                .content("Move specific")
+                                                .content(msg)
                                                 .ephemeral(true)
                                                 .build());
                                     }
@@ -491,50 +571,39 @@ public class CommandHandler {
                                                 .getValue()
                                                 .orElseThrow()
                                                 .asString();
-                                        var future = new CompletableFuture<String>();
-                                        Thread.startVirtualThread(() -> {
-                                            try {
-                                                future.complete(instance.useFun(i -> {
+                                        return instance.useFun(i -> {
                                                     if (i.reactionRoles().containsKey(msgId)) {
                                                         // update
                                                         try {
                                                             var messageId = i.updateReactionRolesMessage(msgId, channelId, content);
-                                                            var channel = (MessageChannel) Objects.requireNonNull(gateway
+                                                            var spec = buildRoleEditSpec(i.reactionRoles().get(msgId));
+                                                            return gateway
                                                                     .getChannelById(channelFlake)
-                                                                    .block());
-                                                            var message = Objects.requireNonNull(channel
-                                                                    .getMessageById(Snowflake.of(messageId))
-                                                                    .block());
-                                                            message
-                                                                    .edit(buildRoleEditSpec(i
-                                                                            .reactionRoles()
-                                                                            .get(msgId)))
-                                                                    .block();
-                                                            return "Updated message";
+                                                                    .map(c -> (MessageChannel) c)
+                                                                    .flatMap(c -> c.getMessageById(Snowflake.of(messageId)))
+                                                                    .flatMap(m -> m.edit(spec))
+                                                                    .thenReturn("Updated message");
                                                         } catch (IOException e) {
                                                             LOGGER.error("Failed to save config", e);
-                                                            return "Internal error: Failed to save config. Contact DasBabyPixel";
+                                                            return Mono.just("Internal error: Failed to save config. Contact DasBabyPixel");
                                                         }
                                                     }
-                                                    var channel = (MessageChannel) Objects.requireNonNull(gateway
+                                                    return gateway
                                                             .getChannelById(channelFlake)
-                                                            .block());
-                                                    var messageId = Objects
-                                                            .requireNonNull(channel
-                                                                    .createMessage(buildRoleCreateSpec(new ReactionRolesMessage(msgId, channelId, 0L, content)))
-                                                                    .block())
-                                                            .getId()
-                                                            .asLong();
-                                                    i.addReactionRolesMessage(msgId, channelId, messageId, content);
-                                                    return "Created reaction roles message";
-                                                }));
-                                            } catch (Throwable t) {
-                                                LOGGER.error("Failed to create message", t);
-                                                future.complete("Internal error: Failed to create message. Contact DasBabyPixel");
-                                            }
-                                        });
-                                        return Mono
-                                                .fromFuture(future)
+                                                            .map(c -> (MessageChannel) c)
+                                                            .flatMap(c -> c.createMessage(buildRoleCreateSpec(new ReactionRolesMessage(msgId, channelId, 0L, content))))
+                                                            .map(m -> {
+                                                                try {
+                                                                    instance.useCal(c -> c.addReactionRolesMessage(msgId, channelId, m
+                                                                            .getId()
+                                                                            .asLong(), content));
+                                                                    return "Created reaction roles message";
+                                                                } catch (IOException e) {
+                                                                    LOGGER.error("Failed to save config", e);
+                                                                    return "Internal error: Failed to save config. Contact DasBabyPixel";
+                                                                }
+                                                            });
+                                                })
                                                 .flatMap(s -> event.reply(InteractionApplicationCommandCallbackSpec
                                                         .builder()
                                                         .content(s)
@@ -700,12 +769,9 @@ public class CommandHandler {
                         .content("Unknown command: " + command)
                         .ephemeral(true)
                         .build());
-            } catch (Error t) {
+            } catch (Throwable t) {
                 LOGGER.error("Error during command", t);
                 throw t;
-            } catch (RuntimeException e) {
-                LOGGER.error("Exception during command", e);
-                throw e;
             }
         }).subscribe();
     }

@@ -1,6 +1,8 @@
 import discord4j.common.util.Snowflake;
 import discord4j.core.object.entity.channel.MessageChannel;
 import discord4j.core.spec.MessageCreateSpec;
+import reactor.util.Logger;
+import reactor.util.Loggers;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -8,11 +10,13 @@ import java.time.Instant;
 import java.util.*;
 
 public class ServerInstance {
+    private static final Logger LOGGER = Loggers.getLogger(ServerInstance.class);
     private final long id;
     private final Map<String, Event> events = new HashMap<>();
     private final Map<String, ReactionRolesMessage> reactionRoles = new HashMap<>();
     private final Timer timer;
     private final Map<Reminder, TimerTask> timers = new HashMap<>();
+    private final Map<Reminder, TimerTask> offsetTimers = new HashMap<>();
 
     public ServerInstance(long id) {
         this.id = id;
@@ -58,11 +62,8 @@ public class ServerInstance {
 
         void addAllEvents(Map<String, Event> eventMap) {
             events.putAll(eventMap);
-            var now = Instant.now();
             for (var event : eventMap.values()) {
-                for (var reminder : event.reminders().values()) {
-                    start(reminder, event.getNextReminderTime(now, reminder.offsetBeforeEvent()), event.interval());
-                }
+                startTimers(event);
             }
         }
 
@@ -85,12 +86,11 @@ public class ServerInstance {
             return rr.getMessageId();
         }
 
-        public boolean addReactionRolesMessage(String msgId, long channelId, long messageId, String content) throws IOException {
-            if (reactionRoles().containsKey(msgId)) return false;
+        public void addReactionRolesMessage(String msgId, long channelId, long messageId, String content) throws IOException {
+            if (reactionRoles().containsKey(msgId)) throw new IllegalStateException();
             var rr = new ReactionRolesMessage(msgId, channelId, messageId, content);
             reactionRoles().put(msgId, rr);
             save();
-            return true;
         }
 
         public boolean removeReactionRolesMessage(String msgId) throws IOException {
@@ -99,12 +99,11 @@ public class ServerInstance {
             return suc;
         }
 
-        public boolean addReactionRolesRole(String msgId, long roleId, String roleDisplay) throws IOException {
+        public void addReactionRolesRole(String msgId, long roleId, String roleDisplay) throws IOException {
             var rr = Objects.requireNonNull(reactionRoles().get(msgId));
-            if (rr.getRoles().containsKey(roleId)) return false;
+            if (rr.getRoles().containsKey(roleId)) throw new IllegalStateException();
             rr.getRoles().put(roleId, new ReactionRolesMessage.RoleEntry(roleId, roleDisplay));
             save();
-            return true;
         }
 
         public void updateRoleDisplay(String msgId, long roleId, String roleDisplay) throws IOException {
@@ -114,18 +113,18 @@ public class ServerInstance {
             save();
         }
 
-        public boolean removeReactionRolesRole(String msgId, long roleId) throws IOException {
+        public void removeReactionRolesRole(String msgId, long roleId) throws IOException {
             var rr = Objects.requireNonNull(reactionRoles().get(msgId));
-            if (!rr.getRoles().containsKey(roleId)) return false;
+            if (!rr.getRoles().containsKey(roleId)) throw new IllegalStateException();
             rr.getRoles().remove(roleId);
             save();
-            return true;
         }
 
-        private void start(Reminder rem, Instant start, Duration interval) {
+        private void start(Reminder rem, Instant start, Duration interval, boolean isOffset) {
             var task = new TimerTask() {
                 @Override
                 public void run() {
+                    LOGGER.info("Sending reminder for " + rem.name());
                     ReminderBot.gateway
                             .getChannelById(Snowflake.of(rem.channelId()))
                             .ofType(MessageChannel.class)
@@ -134,10 +133,93 @@ public class ServerInstance {
                                     .content(rem.message())
                                     .build()))
                             .subscribe();
+                    if (isOffset) {
+                        LOGGER.info("Cancelling single-offset reminder");
+                        cancel();
+                        synchronized (ServerInstance.this) {
+                            offsetTimers.remove(rem, this);
+                        }
+                    }
                 }
             };
             timer.scheduleAtFixedRate(task, Date.from(start), interval.toMillis());
-            timers.put(rem, task);
+            LOGGER.info("Starting timer for reminder " + rem.name() + " with first execution " + start + " offset:" + isOffset);
+            if (isOffset) {
+                offsetTimers.put(rem, task);
+            } else {
+                timers.put(rem, task);
+            }
+        }
+
+        public boolean moveEventTo(String eventName, Instant firstTime) throws IOException {
+            var event = events.get(eventName);
+            if (event == null) return false;
+            event.moveTo(firstTime);
+            restartTimers(event);
+            save();
+            return true;
+        }
+
+        public boolean moveEventBy(String eventName, Duration duration) throws IOException {
+            var event = events.get(eventName);
+            if (event == null) return false;
+            event.moveBy(duration);
+            restartTimers(event);
+            save();
+            return true;
+        }
+
+        public boolean moveEventByOnce(String eventName, Duration duration) throws IOException {
+            var event = events.get(eventName);
+            if (event == null) return false;
+            event.moveByOnce(duration);
+            restartTimers(event);
+            save();
+            return true;
+        }
+
+        private void restartTimers(Event event) {
+            stopTimers(event);
+            startTimers(event);
+        }
+
+        private void stopTimers(Event event) {
+            LOGGER.info("Stopping all timers for event " + event.name());
+            for (var rem : event.reminders().values()) {
+                timers.remove(rem).cancel();
+            }
+            for (var rem : event.reminders().values()) {
+                var t = offsetTimers.remove(rem);
+                if (t != null) t.cancel();
+            }
+            LOGGER.info("Stopped all timers for event " + event.name());
+        }
+
+        private void startTimers(Event event) {
+            LOGGER.info("Starting all timers for event " + event.name());
+            var now = Instant.now();
+            for (var rem : event.reminders().values()) {
+                if (event.isNextOffset(now)) {
+                    LOGGER.info("Detected offset: " + event.getOffsetNextTime());
+
+                    var nextNormalStart = Event
+                            .getNextExecution(event.firstTime(), now, event.interval())
+                            .plus(event.interval())
+                            .minus(rem.offsetBeforeEvent());
+                    start(rem, nextNormalStart, event.interval(), false);
+
+                    var offsetStart = event.getNextReminderTime(now, rem.offsetBeforeEvent());
+                    if (now.isBefore(offsetStart)) {
+                        start(rem, offsetStart, event.interval(), true);
+                    } else {
+                        LOGGER.info("Skipping offset once");
+                    }
+
+                } else {
+                    start(rem, event.getNextReminderTime(now, rem.offsetBeforeEvent()), event.interval(), false);
+                }
+            }
+            LOGGER.info("Started all timers for event " + event.name());
         }
 
         public void addReminder(String eventName, String reminderName, Duration offset, String message, long channelId) throws IOException {
@@ -146,7 +228,7 @@ public class ServerInstance {
             var rem = new Reminder(reminderName, offset, channelId, message);
             event.addReminder(rem);
             save();
-            start(rem, event.getNextReminderTime(Instant.now(), rem.offsetBeforeEvent()), event.interval());
+            restartTimers(event);
         }
 
         public boolean removeReminder(String eventName, String reminderName) throws IOException {
@@ -162,6 +244,7 @@ public class ServerInstance {
 
         public void save() throws IOException {
             ServerManager.INSTANCE.save(this);
+            LOGGER.info("Saving configuration for " + this.id());
         }
 
         public boolean removeEvent(String name) throws IOException {

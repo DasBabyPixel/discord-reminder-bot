@@ -22,8 +22,8 @@ public class CommandDevCreator {
         gateway = ReminderBot.login(args[0]);
         appId = Objects.requireNonNull(gateway.getRestClient().getApplicationId().block());
 //        giveAdmin();
-        removeAdmin();
-//        createCommands();
+//        removeAdmin();
+        createCommands();
     }
 
     private static void giveAdmin() {
@@ -83,24 +83,60 @@ public class CommandDevCreator {
                                 .required(true)
                                 .build())
                         .build())
-//                .addOption(ApplicationCommandOptionData
-//                        .builder()
-//                        .name("manage")
-//                        .description("Manage events (and their reminders)")
-//                        .type(ApplicationCommandOption.Type.SUB_COMMAND_GROUP.getValue())
-//                        .addOption(ApplicationCommandOptionData
-//                                .builder()
-//                                .name("move")
-//                                .description("Move an event to another time")
-//                                .type(ApplicationCommandOption.Type.SUB_COMMAND.getValue())
-//                                .build())
+                .addOption(ApplicationCommandOptionData
+                        .builder()
+                        .name("manage")
+                        .description("Manage events (and their reminders)")
+                        .type(ApplicationCommandOption.Type.SUB_COMMAND_GROUP.getValue())
+                        .addOption(ApplicationCommandOptionData
+                                .builder()
+                                .name("move-to")
+                                .description("Move an event to another time")
+                                .type(ApplicationCommandOption.Type.SUB_COMMAND.getValue())
+                                .addOption(ApplicationCommandOptionData
+                                        .builder()
+                                        .name("event")
+                                        .description("The name of the event to move")
+                                        .type(ApplicationCommandOption.Type.STRING.getValue())
+                                        .autocomplete(true)
+                                        .required(true)
+                                        .build())
+                                .addOption(ApplicationCommandOptionData
+                                        .builder()
+                                        .name("firststart")
+                                        .description("When the event starts for the first time (UTC)")
+                                        .type(ApplicationCommandOption.Type.STRING.getValue())
+                                        .required(true)
+                                        .build())
+                                .build())
+                        .addOption(ApplicationCommandOptionData
+                                .builder()
+                                .name("move-by-once")
+                                .description("Move the event by some duration once (for the next time it occurs)")
+                                .type(ApplicationCommandOption.Type.SUB_COMMAND.getValue())
+                                .addOption(ApplicationCommandOptionData
+                                        .builder()
+                                        .name("event")
+                                        .description("The name of the event to move")
+                                        .type(ApplicationCommandOption.Type.STRING.getValue())
+                                        .autocomplete(true)
+                                        .required(true)
+                                        .build())
+                                .addOption(ApplicationCommandOptionData
+                                        .builder()
+                                        .name("offset")
+                                        .description("The offset of the event. Always offset from the default time.")
+                                        .type(ApplicationCommandOption.Type.STRING.getValue())
+                                        .required(true)
+                                        .build())
+                                .build())
 //                        .addOption(ApplicationCommandOptionData
 //                                .builder()
 //                                .name("move_specific")
 //                                .description("Move an event to another time")
 //                                .type(ApplicationCommandOption.Type.SUB_COMMAND.getValue())
 //                                .build())
-//                        .build())
+                        .build())
                 .addOption(ApplicationCommandOptionData
                         .builder()
                         .name("delete")
@@ -348,7 +384,7 @@ public class CommandDevCreator {
         var hos = 1331253401643647077L;
         gateway
                 .getRestClient()
-                .getApplicationService().bulkOverwriteGuildApplicationCommand(appId, hos, request)
+                .getApplicationService().bulkOverwriteGuildApplicationCommand(appId, test, request)
                 .then()
                 .block();
     }
