@@ -62,8 +62,33 @@ public class ServerManager {
                         var event = new Event(eventName, firstTime, interval, reminderMap);
                         eventMap.put(eventName, event);
                     }
+                    var reactionRoles = new HashMap<String, ReactionRolesMessage>();
+                    if (json.has("reactionRoles")) {
+                        var reactionRolesJson = json.get("reactionRoles").getAsJsonObject();
+                        for (var msgId : reactionRolesJson.keySet()) {
+                            var j = reactionRolesJson.get(msgId).getAsJsonObject();
+                            var messageId = j.get("messageId").getAsLong();
+                            var channelId = j.get("channelId").getAsLong();
+                            var content = j.get("content").getAsString();
+                            var roles = new HashMap<Long, ReactionRolesMessage.RoleEntry>();
+                            var rolesJson = j.get("roles").getAsJsonObject();
 
-                    get(Long.parseLong(serverPath.getFileName().toString())).useCal(input -> input.addAll(eventMap));
+                            for (var roleIdS : rolesJson.keySet()) {
+                                var roleId = Long.parseLong(roleIdS);
+                                var roleDisplay = rolesJson.get(roleIdS).getAsString();
+                                roles.put(roleId, new ReactionRolesMessage.RoleEntry(roleId, roleDisplay));
+                            }
+
+                            var msg = new ReactionRolesMessage(msgId, channelId, messageId, content);
+                            msg.getRoles().putAll(roles);
+                            reactionRoles.put(msgId, msg);
+                        }
+                    }
+
+                    get(Long.parseLong(serverPath.getFileName().toString())).useCal(input -> {
+                        input.addAllEvents(eventMap);
+                        input.reactionRoles().putAll(reactionRoles);
+                    });
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -107,6 +132,21 @@ public class ServerManager {
                 events.add(event.name(), ej);
             }
             json.add("events", events);
+            var reactionRoles = new JsonObject();
+            for (var message : instance.reactionRoles().values()) {
+                var roles = new JsonObject();
+                for (var role : message.getRoles().values()) {
+                    roles.addProperty(Long.toString(role.roleId()), role.display());
+                }
+                var j = new JsonObject();
+                j.add("roles", roles);
+                j.addProperty("messageId", message.getMessageId());
+                j.addProperty("channelId", message.getChannelId());
+                j.addProperty("content", message.getContent());
+                reactionRoles.add(message.getMsgId(), j);
+            }
+            json.add("reactionRoles", reactionRoles);
+
             gson.toJson(json, writer);
         }
     }

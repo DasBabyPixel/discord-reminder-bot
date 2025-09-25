@@ -10,6 +10,7 @@ import java.util.*;
 public class ServerInstance {
     private final long id;
     private final Map<String, Event> events = new HashMap<>();
+    private final Map<String, ReactionRolesMessage> reactionRoles = new HashMap<>();
     private final Timer timer;
     private final Map<Reminder, TimerTask> timers = new HashMap<>();
 
@@ -55,7 +56,7 @@ public class ServerInstance {
             return id;
         }
 
-        void addAll(Map<String, Event> eventMap) {
+        void addAllEvents(Map<String, Event> eventMap) {
             events.putAll(eventMap);
             var now = Instant.now();
             for (var event : eventMap.values()) {
@@ -68,6 +69,57 @@ public class ServerInstance {
         public Map<String, Event> events() {
             if (!valid) throw new UnsupportedOperationException();
             return events;
+        }
+
+        public Map<String, ReactionRolesMessage> reactionRoles() {
+            if (!valid) throw new UnsupportedOperationException();
+            return reactionRoles;
+        }
+
+        public long updateReactionRolesMessage(String msgId, long channelId, String content) throws IOException {
+            var rr = Objects.requireNonNull(reactionRoles().get(msgId));
+            if (rr.getChannelId() != channelId)
+                throw new IllegalArgumentException("A message with that ID already exists in a different channel");
+            rr.content(content);
+            save();
+            return rr.getMessageId();
+        }
+
+        public boolean addReactionRolesMessage(String msgId, long channelId, long messageId, String content) throws IOException {
+            if (reactionRoles().containsKey(msgId)) return false;
+            var rr = new ReactionRolesMessage(msgId, channelId, messageId, content);
+            reactionRoles().put(msgId, rr);
+            save();
+            return true;
+        }
+
+        public boolean removeReactionRolesMessage(String msgId) throws IOException {
+            var suc = reactionRoles().remove(msgId) != null;
+            if (suc) save();
+            return suc;
+        }
+
+        public boolean addReactionRolesRole(String msgId, long roleId, String roleDisplay) throws IOException {
+            var rr = Objects.requireNonNull(reactionRoles().get(msgId));
+            if (rr.getRoles().containsKey(roleId)) return false;
+            rr.getRoles().put(roleId, new ReactionRolesMessage.RoleEntry(roleId, roleDisplay));
+            save();
+            return true;
+        }
+
+        public void updateRoleDisplay(String msgId, long roleId, String roleDisplay) throws IOException {
+            var rr = Objects.requireNonNull(reactionRoles().get(msgId));
+            if (!rr.getRoles().containsKey(roleId)) throw new IllegalStateException("Role does not exist");
+            rr.getRoles().put(roleId, new ReactionRolesMessage.RoleEntry(roleId, roleDisplay));
+            save();
+        }
+
+        public boolean removeReactionRolesRole(String msgId, long roleId) throws IOException {
+            var rr = Objects.requireNonNull(reactionRoles().get(msgId));
+            if (!rr.getRoles().containsKey(roleId)) return false;
+            rr.getRoles().remove(roleId);
+            save();
+            return true;
         }
 
         private void start(Reminder rem, Instant start, Duration interval) {
