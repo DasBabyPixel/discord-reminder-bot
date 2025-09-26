@@ -8,6 +8,7 @@ import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
 import discord4j.core.object.component.ActionRow;
 import discord4j.core.object.component.Button;
 import discord4j.core.object.component.LayoutComponent;
+import discord4j.core.object.component.TopLevelMessageComponent;
 import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.channel.MessageChannel;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
@@ -63,13 +64,18 @@ public class CommandHandler {
                                     if (has) {
                                         return member
                                                 .removeRole(Snowflake.of(froleId))
+                                                .doOnError(throwable -> LOGGER.error("Error while removing role", throwable))
+                                                .retry(5)
                                                 .thenReturn("Your role for " + fdispaly + " was removed");
                                     } else {
                                         return member
                                                 .addRole(Snowflake.of(froleId))
+                                                .doOnError(throwable -> LOGGER.error("Error while adding role", throwable))
+                                                .retry(5)
                                                 .thenReturn("You were given the role for " + fdispaly);
                                     }
                                 })
+                                .doOnSuccess(_ -> LOGGER.info("Modifying role complete"))
                                 .flatMap(s -> event.reply(InteractionApplicationCommandCallbackSpec
                                         .builder()
                                         .ephemeral(true)
@@ -776,8 +782,8 @@ public class CommandHandler {
         }).subscribe();
     }
 
-    private static List<LayoutComponent> buildRoleSpecComponents(ReactionRolesMessage msg) {
-        var components = new ArrayList<LayoutComponent>();
+    private static List<TopLevelMessageComponent> buildRoleSpecComponents(ReactionRolesMessage msg) {
+        var components = new ArrayList<TopLevelMessageComponent>();
         var rowContent = new ArrayList<Button>(4);
         var roles = msg.getRoles().values().stream() // TODO better sorting through customizable weight
                 .sorted(Comparator.comparing(ReactionRolesMessage.RoleEntry::display)).toList();

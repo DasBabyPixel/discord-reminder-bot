@@ -25,6 +25,6 @@ tasks.withType<JavaExec>().configureEach {
 }
 
 dependencies {
-    implementation("com.discord4j:discord4j-core:3.2.7")
+    implementation("com.discord4j:discord4j-core:3.2.9")
     implementation("com.google.code.gson:gson:2.11.0")
 }
