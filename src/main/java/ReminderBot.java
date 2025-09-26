@@ -1,13 +1,10 @@
 import discord4j.common.ReactorResources;
-import discord4j.core.DiscordClient;
 import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
 import io.netty.channel.ChannelOption;
-import io.netty.handler.logging.LogLevel;
 import reactor.core.publisher.Hooks;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.resources.ConnectionProvider;
-import reactor.netty.transport.logging.AdvancedByteBufFormat;
 import reactor.util.Logger;
 import reactor.util.Loggers;
 
@@ -204,7 +201,7 @@ public class ReminderBot {
                                         .maxLifeTime(Duration.ofMinutes(2))
                                         .pendingAcquireTimeout(Duration.ofSeconds(5))
                                         .build())
-                                .wiretap("reactor.netty.http.client", LogLevel.INFO, AdvancedByteBufFormat.TEXTUAL)
+//                                .wiretap("reactor.netty.http.client", LogLevel.INFO, AdvancedByteBufFormat.TEXTUAL)
                                 .resolver(spec -> spec.queryTimeout(Duration.ofSeconds(5)))
                                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
                                 .responseTimeout(Duration.ofSeconds(10)))

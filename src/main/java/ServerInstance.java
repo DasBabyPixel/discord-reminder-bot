@@ -227,9 +227,10 @@ public class ServerInstance {
             var event = events.get(eventName);
             if (event == null) throw new IllegalArgumentException("Unknown event: " + eventName);
             var rem = new Reminder(reminderName, offset, channelId, message);
+            stopTimers(event);
             event.addReminder(rem);
             save();
-            restartTimers(event);
+            startTimers(event);
         }
 
         public boolean removeReminder(String eventName, String reminderName) throws IOException {

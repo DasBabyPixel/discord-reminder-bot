@@ -454,38 +454,33 @@ public class CommandHandler {
                                             .ephemeral(true)
                                             .build());
                                 }
-                                var message = op.getOption("message").orElseThrow().getValue().orElseThrow().asString();
-                                return op
+                                var channelId = op
                                         .getOption("channel")
-                                        .orElseThrow()
-                                        .getValue()
-                                        .orElseThrow()
-                                        .asChannel()
-                                        .flatMap(channel -> instance.useFun(i -> {
-                                            try {
-                                                i.addReminder(eventName, name, offset, message, channel
-                                                        .getId()
-                                                        .asLong());
-                                                return event.reply(InteractionApplicationCommandCallbackSpec
-                                                        .builder()
-                                                        .content("Reminder created")
-                                                        .ephemeral(true)
-                                                        .build());
-                                            } catch (IOException e) {
-                                                LOGGER.error("Failed to save config", e);
-                                                return event.reply(InteractionApplicationCommandCallbackSpec
-                                                        .builder()
-                                                        .content("Internal error: Failed to save config. Contact DasBabyPixel")
-                                                        .ephemeral(true)
-                                                        .build());
-                                            } catch (IllegalArgumentException e) {
-                                                return event.reply(InteractionApplicationCommandCallbackSpec
-                                                        .builder()
-                                                        .content(e.getMessage())
-                                                        .ephemeral(true)
-                                                        .build());
-                                            }
-                                        }));
+                                        .orElseThrow().getValue().orElseThrow().asSnowflake().asLong();
+                                var message = op.getOption("message").orElseThrow().getValue().orElseThrow().asString();
+                                return instance.useFun(i -> {
+                                    try {
+                                        i.addReminder(eventName, name, offset, message, channelId);
+                                        return event.reply(InteractionApplicationCommandCallbackSpec
+                                                .builder()
+                                                .content("Reminder created")
+                                                .ephemeral(true)
+                                                .build());
+                                    } catch (IOException e) {
+                                        LOGGER.error("Failed to save config", e);
+                                        return event.reply(InteractionApplicationCommandCallbackSpec
+                                                .builder()
+                                                .content("Internal error: Failed to save config. Contact DasBabyPixel")
+                                                .ephemeral(true)
+                                                .build());
+                                    } catch (IllegalArgumentException e) {
+                                        return event.reply(InteractionApplicationCommandCallbackSpec
+                                                .builder()
+                                                .content(e.getMessage())
+                                                .ephemeral(true)
+                                                .build());
+                                    }
+                                });
                             }
                             case "list" -> {
                                 var eventName = op.getOption("event").orElseThrow().getValue().orElseThrow().asString();
@@ -777,7 +772,11 @@ public class CommandHandler {
                         .build());
             } catch (Throwable t) {
                 LOGGER.error("Error during command", t);
-                throw t;
+                return event.reply(InteractionApplicationCommandCallbackSpec
+                        .builder()
+                        .content("Internal error. Contact DasBabyPixel.")
+                        .ephemeral(true)
+                        .build());
             }
         }).subscribe();
     }
