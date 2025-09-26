@@ -3,6 +3,7 @@ import discord4j.core.object.entity.channel.MessageChannel;
 import discord4j.core.spec.MessageCreateSpec;
 import reactor.util.Logger;
 import reactor.util.Loggers;
+import reactor.util.retry.Retry;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -129,9 +130,9 @@ public class ServerInstance {
                             .getChannelById(Snowflake.of(rem.channelId()))
                             .ofType(MessageChannel.class)
                             .flatMap(channel -> channel.createMessage(MessageCreateSpec
-                                    .builder()
-                                    .content(rem.message())
-                                    .build()))
+                                    .builder().content(rem.message()).build()))
+                            .doOnError(throwable -> LOGGER.error("Failed to send message", throwable))
+                            .retryWhen(Retry.backoff(3, Duration.ofSeconds(2)))
                             .subscribe();
                     if (isOffset) {
                         LOGGER.info("Cancelling single-offset reminder");

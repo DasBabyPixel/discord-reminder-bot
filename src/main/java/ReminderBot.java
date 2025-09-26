@@ -1,5 +1,6 @@
 import discord4j.core.DiscordClient;
 import discord4j.core.GatewayDiscordClient;
+import reactor.core.publisher.Hooks;
 import reactor.util.Logger;
 import reactor.util.Loggers;
 
@@ -13,6 +14,7 @@ public class ReminderBot {
     public static void main(String[] args) {
         login(args[0]);
 
+        Hooks.onErrorDropped(throwable -> LOGGER.error("Unhandled exception", throwable));
         ServerManager.load();
 
         ConsoleReader.start();
