@@ -382,9 +382,10 @@ public class CommandDevCreator {
     private static void create(List<ApplicationCommandRequest> request) {
         var test = 626042080799490048L;
         var hos = 1331253401643647077L;
+        var war = 1289313459401523343L;
         gateway
                 .getRestClient()
-                .getApplicationService().bulkOverwriteGuildApplicationCommand(appId, test, request)
+                .getApplicationService().bulkOverwriteGuildApplicationCommand(appId, war, request)
                 .then()
                 .block();
     }
