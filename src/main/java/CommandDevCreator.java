@@ -1,15 +1,12 @@
 import discord4j.common.util.Snowflake;
 import discord4j.core.GatewayDiscordClient;
-import discord4j.core.object.command.ApplicationCommand;
 import discord4j.core.object.command.ApplicationCommandOption;
 import discord4j.core.object.entity.Role;
 import discord4j.core.spec.RoleCreateSpec;
-import discord4j.discordjson.json.ApplicationCommandData;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ApplicationCommandRequest;
 import discord4j.rest.util.PermissionSet;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -55,7 +52,7 @@ public class CommandDevCreator {
                 .builder()
                 .name("event")
                 .description("Manage events")
-                .defaultMemberPermissions(Integer.toString(1 << 3))
+                .defaultMemberPermissions(Integer.toString(1 << 5))
                 .addOption(ApplicationCommandOptionData
                         .builder()
                         .name("create")
@@ -177,7 +174,7 @@ public class CommandDevCreator {
                 .builder()
                 .name("reminder")
                 .description("Manage reminders")
-                .defaultMemberPermissions(Integer.toString(1 << 3))
+                .defaultMemberPermissions(Integer.toString(1 << 5))
                 .addOption(ApplicationCommandOptionData
                         .builder()
                         .name("create")
@@ -260,7 +257,7 @@ public class CommandDevCreator {
 
         requests.add(ApplicationCommandRequest
                 .builder()
-                .defaultMemberPermissions(Integer.toString(1 << 3))
+                .defaultMemberPermissions(Integer.toString(1 << 5))
                 .name("reactionroles")
                 .description("Configure reaction role assignments")
                 .addOption(ApplicationCommandOptionData
